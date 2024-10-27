@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-cm
+  namespace: homework
+data:
+  file_1: |
+    Hi, Pavel
+  file_2: |
+    Goodbye, Pavel
