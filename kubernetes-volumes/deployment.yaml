@@ -1,0 +1,84 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-conf
+data:
+  nginx.conf: |
+      server {
+          listen       8000;
+          server_name  localhost;
+          location / {
+            root   /homework;
+            index  index.html index.htm;
+        }
+      }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    app: nginx
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.27-alpine
+        lifecycle: 
+           preStop: 
+               exec:
+                  command: ["/bin/sh","-c","rm -f /homework/index.html"]
+        ports:
+        - containerPort: 8000
+        volumeMounts:
+        - name: workdir
+          mountPath: /homework
+        - name: conf
+          mountPath: /etc/nginx/conf.d
+        - name: cm
+          mountPath: /homework/conf          
+        readinessProbe:
+          httpGet:
+            path: /index.html
+            port: 8000
+          initialDelaySeconds: 3
+          periodSeconds: 5
+      nodeSelector:
+        homework: "true"
+      initContainers:
+      - name: install
+        image: busybox:1.28
+        command:
+        - wget
+        - "-O"
+        - "/init/index.html"
+        - http://info.cern.ch
+        volumeMounts:
+        - name: workdir
+          mountPath: "/init"
+      dnsPolicy: Default
+      volumes:
+      - name: workdir
+        persistentVolumeClaim:
+          claimName: pvc-hw
+      - name: conf
+        configMap:
+          name: nginx-conf
+          items:
+             - key: nginx.conf
+               path: nginx.conf
+      - name: cm
+        configMap:
+          name: my-cm       
